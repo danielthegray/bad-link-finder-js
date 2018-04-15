@@ -13,7 +13,7 @@ This project is the result of that idea.
 
 I have tested it on Node.js version 9.11.1.
 
-## Instructions to use
+## Usage instructions
 
 FIRST OF ALL, **ensure that node.js is installed in your environment!**
 _(I recommend you use `nvm`, which will allow you to flexibly change from
@@ -25,4 +25,22 @@ one version of node.js to another)_.
    decided to use Mozilla Firefox. Drivers for it can be found at:
    https://github.com/mozilla/geckodriver/releases/.
 3. Put the webdriver of your choice into your PATH.
-4. 
+4. Ensure that you have Firefox installed.
+
+With your terminal in the repository folder and with everything set up, run
+the following:
+`node bad_link_finder.js [COMMAND_LINE_OPTIONS] URL`
+The command line options are:
+* **`--domain DOMAIN_TO_RESTRICT_CRAWLING_TO` (can also be `-d`):**
+	This option will restrict the recursive crawling to URLs under this domain.
+	URLs outside of this domain will be checked, but links on the page they
+	point to will not be crawled.
+* **`--crawl-depth MAX_DEPTH_TO_CRAWL` (can also be `-c`):**
+	This option will restrict crawling to URLs up to a certain number of
+	"levels" down from the root URL provided (the last command line argument).
+* **`--verbose` (can also be `-v`):**
+	This options increases the verbosity, which means that it will also print
+	links that return 2xx or 3xx HTTP response codes.
+
+**Example:**
+ `node bad_link_finder.js --domain crates.io --crawl-depth 2 -v https://crates.io`

@@ -6,15 +6,19 @@ var webdriver = require('selenium-webdriver'),
 var firefox = require('selenium-webdriver/firefox');
 var http = require('http');
 var https = require('https');
+var binary = new firefox.Binary(firefox.Channel.RELEASE);
+binary.addArguments("-headless");
 var driver = new webdriver.Builder()
     .forBrowser('firefox')
+	.setFirefoxOptions(new firefox.Options().setBinary(binary))
     .build()
 
 var option;
 var crawl_depth = -1;
-var domain="";;
+var domain = "";
+var verbose = 0;
 
-var parser = new mod_getopt.BasicParser('c:(crawl-depth)d:(domain)',
+var parser = new mod_getopt.BasicParser('c:(crawl-depth)d:(domain)v(verbose)',
 	process.argv);
 while ((option = parser.getopt()) !== undefined) {
 	switch (option.option) {
@@ -23,6 +27,9 @@ while ((option = parser.getopt()) !== undefined) {
 		break;
 	case 'd':
 		domain = option.optarg;
+		break;
+	case 'v':
+		verbose++;
 		break;
 	default:
 		/* error message already emitted by getopt */
@@ -104,7 +111,7 @@ async function crawl_url(url) {
 
 		checked_links[current_url] = true;
 		var url_status = await check_url_status(current_url);
-		print_url_status(current_url, url_status, current_parent_url);
+		print_url_status(current_url, url_status, current_parent_url, verbose);
 
 		// if we are restricting crawling to a domain, after checking the
 		// external link, we don't add children from that link
@@ -139,7 +146,8 @@ async function crawl_url(url) {
 		var actual_url = await driver.getCurrentUrl();
 		if (actual_url !== current_url) {
 			var actual_url_status = await check_url_status(actual_url);
-			print_url_status(actual_url, actual_url_status, current_parent_url);
+			print_url_status(actual_url, actual_url_status,
+				current_parent_url, verbose);
 			checked_links[actual_url] = true;
 		}
 
@@ -161,5 +169,7 @@ async function crawl_url(url) {
 	}
 }
 crawl_url(url).then(function() {
+	driver.quit();
+}).catch((ex) => function() {
 	driver.quit();
 });
