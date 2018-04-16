@@ -11,7 +11,7 @@ browser and save time.
 
 This project is the result of that idea.
 
-I have tested it on Node.js version 9.11.1.
+I have tested it on Node.js version 8.11.1.
 
 ## Usage instructions
 
