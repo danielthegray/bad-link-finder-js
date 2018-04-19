@@ -1,5 +1,6 @@
 'use strict';
 var mod_getopt = require('posix-getopt');
+var fs = require('fs');
 var webdriver = require('selenium-webdriver'),
     By = webdriver.By,
     until = webdriver.until;
@@ -18,9 +19,12 @@ var crawl_depth = -1;
 var domain = "";
 var verbose = 0;
 var max_retries=1;
+var saved_session_file = null;
+var url_stack = [];
+var checked_links = {};
 
 var parser = new mod_getopt.BasicParser(
-	'c:(crawl-depth)d:(domain)r:(max-retries)v(verbose)',
+	'c:(crawl-depth)d:(domain)r:(max-retries)s:(saved)v(verbose)',
 	process.argv);
 while ((option = parser.getopt()) !== undefined) {
 	switch (option.option) {
@@ -32,6 +36,9 @@ while ((option = parser.getopt()) !== undefined) {
 		break;
 	case 'r':
 		max_retries = option.optarg;
+		break;
+	case 's':
+		saved_session_file = option.optarg;
 		break;
 	case 'v':
 		verbose++;
@@ -49,7 +56,18 @@ if (!url.match(/https?\:\/\//)) {
 if (!url.match(/.*\/$/)) {
 	url += '/';
 }
-console.log('Crawling URL '+url);
+if (saved_session_file) {
+	let saved_session = JSON.parse(fs.readFileSync(saved_session_file));
+	console.log(saved_session);
+	url = saved_session.url;
+	url_stack = saved_session.url_stack,
+	checked_links = saved_session.checked_links;
+	crawl_depth = saved_session.crawl_depth;
+	domain = saved_session.domain;
+	verbose = saved_session.verbose;
+	max_retries = saved_session.max_retries;
+}
+console.log('Crawling URL set to: '+url);
 console.log('Restricting the crawling to domain "'+domain+'"');
 console.log('Restricting the crawling to links at depth '+crawl_depth);
 
@@ -65,6 +83,17 @@ function path_from_url(url) {
 function protocol_from_url(url) {
 	return url.replace(/((https?):\/\/)?.*/, "$2");
 }
+function randomString(length) {
+	var text = "";
+	var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+	for (var i = 0; i < length; i++) {
+		text += possible.charAt(Math.floor(Math.random() * possible.length));
+	}
+
+	return text;
+}
+
 
 async function check_url_status(url) {
 	return new Promise(function(resolve, reject) {
@@ -122,9 +151,11 @@ function process_error(url_stack, checked_links, url_object) {
 }
 
 async function crawl_url(url) {
-	var url_stack = [];
-	var checked_links = {};
-	url_stack.push({'url': url, 'depth': 0});
+	if (url_stack.length == 0) {
+		console.log('Starting crawl process at ' + url);
+		url_stack.push({'url': url, 'depth': 0});
+	}
+	console.log('There are '+url_stack.length+' URLs in the stack');
 	while (url_stack.length > 0) {
 		var url_object = url_stack.pop();
 		var current_url = url_object.url;
@@ -218,4 +249,39 @@ crawl_url(url).then(function() {
 	driver.quit();
 }).catch((ex) => function() {
 	driver.quit();
+});
+process.on('SIGINT', function() {
+	console.log('\nCaught Control+C. Saving crawl session...');
+	// Yes, I know that declarations are hoisted anyway...
+	// but it still looks ugly for me if I declared it inside the loop!
+	var filename;
+	var max_failures=15;
+	var num_failures = 0;
+	do {
+		filename = 'crawling_session_'+randomString(10)+'.crawl';
+		num_failures++;
+	} while (fs.existsSync(filename) && num_failures < max_failures);
+	if (num_failures >= max_failures) {
+		console.log('Was unable to select a suitable filename for saving the session!');
+		return;
+	}
+
+	fs.writeFileSync(filename, JSON.stringify({
+		'url_stack': url_stack,
+		'checked_links': checked_links,
+		'crawl_depth': crawl_depth,
+		'domain': domain,
+		'verbose': verbose,
+		'max_retries': max_retries,
+		'url': url
+	}), function(err) {
+		if (err) {
+			console.log('ERROR while saving session for future crawling!');
+			console.log(err);
+			return;
+		}
+		console.log('The session file was successfully saved to "'
+			+ filename + '"!');
+		process.exit();
+	});
 });

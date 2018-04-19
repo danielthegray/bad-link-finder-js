@@ -43,6 +43,10 @@ The command line options are:
 	out). By default, it will retry once. Also note that the URL will not be
 	retried immadiately; it will be added to the bottom of the stack to be
 	checked after all the other URLs have been checked.
+* **`--saved SAVED_CRAWL_SESSION` can also be `-s`):**
+	This option will allow you to resume a saved crawl session, by specifying
+	the filename of the saved session (stopping the process with Control-C)
+	will save the progress out to a file with a random name.
 * **`--verbose` (can also be `-v`):**
 	This options increases the verbosity, which means that it will also print
 	links that return 2xx or 3xx HTTP response codes.
