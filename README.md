@@ -38,6 +38,11 @@ The command line options are:
 * **`--crawl-depth MAX_DEPTH_TO_CRAWL` (can also be `-c`):**
 	This option will restrict crawling to URLs up to a certain number of
 	"levels" down from the root URL provided (the last command line argument).
+* **`--max-retries MAX_RETRIES` can also be `-r`):**
+	This option will limit the number of times a URL is retried (if it times
+	out). By default, it will retry once. Also note that the URL will not be
+	retried immadiately; it will be added to the bottom of the stack to be
+	checked after all the other URLs have been checked.
 * **`--verbose` (can also be `-v`):**
 	This options increases the verbosity, which means that it will also print
 	links that return 2xx or 3xx HTTP response codes.

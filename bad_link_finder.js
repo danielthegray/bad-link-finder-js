@@ -17,8 +17,10 @@ var option;
 var crawl_depth = -1;
 var domain = "";
 var verbose = 0;
+var max_retries=1;
 
-var parser = new mod_getopt.BasicParser('c:(crawl-depth)d:(domain)v(verbose)',
+var parser = new mod_getopt.BasicParser(
+	'c:(crawl-depth)d:(domain)r:(max-retries)v(verbose)',
 	process.argv);
 while ((option = parser.getopt()) !== undefined) {
 	switch (option.option) {
@@ -27,6 +29,9 @@ while ((option = parser.getopt()) !== undefined) {
 		break;
 	case 'd':
 		domain = option.optarg;
+		break;
+	case 'r':
+		max_retries = option.optarg;
 		break;
 	case 'v':
 		verbose++;
@@ -74,10 +79,16 @@ async function check_url_status(url) {
 		if (url.indexOf('https') === 0) {
 			https.get(request_options, function(resp) {
 				resolve(resp.statusCode);
+			}).on('error', function(err) {
+				console.error(err);
+				reject(err);
 			});
 		} else {
 			http.get(request_options, function(resp) {
 				resolve(resp.statusCode);
+			}).on('error', function(err) {
+				console.error(err);
+				reject(err);
 			});
 		}
 	});
@@ -93,15 +104,33 @@ function print_url_status(url, status_code, parent_url, verbose=0) {
 	}
 }
 
+function process_error(url_stack, checked_links, url_object) {
+	if (url_object.retry_attempt > max_retries) {
+		console.log(url_object.url+' (found on '+url_object.parent_url
+			+' [BROKEN! - Timed out]');
+		return;
+	}
+	checked_links[current_url] = null;
+	// we unshift to put it at the bottom of the stack
+	// (to check later)
+	url_stack.unshift({
+		url: url_object.url,
+		depth: url_object.depth,
+		parent_url: url_object.parent_url,
+		retry_attempt: url_object.retry_attempt + 1
+	});
+}
+
 async function crawl_url(url) {
 	var url_stack = [];
 	var checked_links = {};
 	url_stack.push({'url': url, 'depth': 0});
 	while (url_stack.length > 0) {
-		var url_and_depth = url_stack.pop();
-		var current_url = url_and_depth.url;
-		var current_depth = url_and_depth.depth;
-		var current_parent_url = url_and_depth.parent_url;
+		var url_object = url_stack.pop();
+		var current_url = url_object.url;
+		var current_depth = url_object.depth;
+		var current_parent_url = url_object.parent_url;
+		var current_retry_attempt = url_object.retry_attempt;
 		if (crawl_depth != -1 && current_depth > crawl_depth) {
 			continue;
 		}
@@ -109,8 +138,17 @@ async function crawl_url(url) {
 			continue;
 		}
 
+		if (verbose > 1) {
+			console.log('Popped '+current_url);
+		}
+
 		checked_links[current_url] = true;
-		var url_status = await check_url_status(current_url);
+		try {
+			var url_status = await check_url_status(current_url);
+		} catch (error) {
+			process_error(url_stack, checked_links, url_object);
+			continue;
+		}
 		print_url_status(current_url, url_status, current_parent_url, verbose);
 
 		// if we are restricting crawling to a domain, after checking the
@@ -145,7 +183,14 @@ async function crawl_url(url) {
 
 		var actual_url = await driver.getCurrentUrl();
 		if (actual_url !== current_url) {
-			var actual_url_status = await check_url_status(actual_url);
+			try {
+				var actual_url_status = await check_url_status(actual_url);
+			} catch (error) {
+				var actual_url_object = Object.assign({}, url_object);
+				actual_url_object.url = actual_url;
+				process_error(url_stack, checked_links, actual_url_object);
+				continue;
+			}
 			print_url_status(actual_url, actual_url_status,
 				current_parent_url, verbose);
 			checked_links[actual_url] = true;
@@ -163,7 +208,8 @@ async function crawl_url(url) {
 			url_stack.push({
 				url: link_href,
 				depth: current_depth+1,
-				parent_url: current_url
+				parent_url: current_url,
+				retry_attempt: 0
 			});
 		}
 	}
