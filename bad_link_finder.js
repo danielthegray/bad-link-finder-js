@@ -49,6 +49,10 @@ while ((option = parser.getopt()) !== undefined) {
 		break;
 	}
 }
+if (process.argv.length < 3) {
+	process.stderr.write("Missing URL!!\n");
+	process.exit();
+}
 var url = process.argv[process.argv.length-1];
 if (!url.match(/https?\:\/\//)) {
 	url = 'http://'+url;
