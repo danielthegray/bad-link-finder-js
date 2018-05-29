@@ -2,17 +2,17 @@
 var mod_getopt = require('posix-getopt');
 var fs = require('fs');
 var webdriver = require('selenium-webdriver'),
-    By = webdriver.By,
-    until = webdriver.until;
+	By = webdriver.By,
+	until = webdriver.until;
 var firefox = require('selenium-webdriver/firefox');
 var http = require('http');
 var https = require('https');
 var binary = new firefox.Binary(firefox.Channel.RELEASE);
 binary.addArguments("-headless");
 var driver = new webdriver.Builder()
-    .forBrowser('firefox')
+	.forBrowser('firefox')
 	.setFirefoxOptions(new firefox.Options().setBinary(binary))
-    .build()
+	.build()
 
 var option;
 var crawl_depth = -1;
