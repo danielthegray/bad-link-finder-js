@@ -113,14 +113,12 @@ async function check_url_status(url) {
 			https.get(request_options, function(resp) {
 				resolve(resp.statusCode);
 			}).on('error', function(err) {
-				console.error(err);
 				reject(err);
 			});
 		} else {
 			http.get(request_options, function(resp) {
 				resolve(resp.statusCode);
 			}).on('error', function(err) {
-				console.error(err);
 				reject(err);
 			});
 		}
@@ -137,11 +135,20 @@ function print_url_status(url, status_code, parent_url, verbose=0) {
 	}
 }
 
-function process_error(url_stack, checked_links, url_object) {
+function process_error(error, url_stack, checked_links, url_object) {
+	if (error.code === 'ENOTFOUND') {
+		console.log(url_object.url+' (found on '+url_object.parent_url
+			+' [BROKEN! - cannot resolve "'+error.hostname+'"]');
+		return;
+	}
 	if (url_object.retry_attempt > max_retries) {
 		console.log(url_object.url+' (found on '+url_object.parent_url
 			+' [BROKEN! - Timed out]');
 		return;
+	}
+	if (error) {
+		console.log('UNKNOWN ERROR!!!');
+		console.log(error);
 	}
 	checked_links[current_url] = null;
 	// we unshift to put it at the bottom of the stack
@@ -181,7 +188,7 @@ async function crawl_url(url) {
 		try {
 			var url_status = await check_url_status(current_url);
 		} catch (error) {
-			process_error(url_stack, checked_links, url_object);
+			process_error(error, url_stack, checked_links, url_object);
 			continue;
 		}
 		print_url_status(current_url, url_status, current_parent_url, verbose);
@@ -224,7 +231,7 @@ async function crawl_url(url) {
 				} catch (error) {
 					var actual_url_object = Object.assign({}, url_object);
 					actual_url_object.url = actual_url;
-					process_error(url_stack, checked_links, actual_url_object);
+					process_error(error, url_stack, checked_links, actual_url_object);
 					continue;
 				}
 				print_url_status(actual_url, actual_url_status,
