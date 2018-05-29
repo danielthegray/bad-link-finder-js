@@ -232,9 +232,8 @@ async function crawl_url(url) {
 				checked_links[actual_url] = true;
 			}
 
-			var link_objects = await driver.findElements(By.tagName('a'));
-			for (var link_object of link_objects) {
-				var link_href = await link_object.getAttribute('href');
+			var links = await driver.executeScript('var urls=[];for (var i= document.links.length; i-->0;) urls.push(document.links[i].href); return urls;');
+			for (var link_href of links) {
 				if (link_href == null
 						|| link_href.match(/^mailto:/)
 						|| link_href.match(/^news:/)
