@@ -249,13 +249,17 @@ async function crawl_url(url) {
 		}
 	}
 }
-crawl_url(url).then(function() {
+try {
+	crawl_url(url).then(function() {
+		process.stderr.write('FINISHED CRAWLING!!\n');
+	}).catch((ex) => function() {
+		process.stderr.write('ERROR WHILE CRAWLING!!\n');
+	});
+} finally {
 	driver.quit();
-}).catch((ex) => function() {
-	driver.quit();
-});
+}
 process.on('SIGINT', function() {
-	console.log('\nCaught Control+C. Saving crawl session...');
+	process.stderr.write('\nCaught Control+C. Saving crawl session...\n');
 	// Yes, I know that declarations are hoisted anyway...
 	// but it still looks ugly for me if I declared it inside the loop!
 	var filename;
@@ -266,7 +270,7 @@ process.on('SIGINT', function() {
 		num_failures++;
 	} while (fs.existsSync(filename) && num_failures < max_failures);
 	if (num_failures >= max_failures) {
-		console.log('Was unable to select a suitable filename for saving the session!');
+		process.stderr.write('Was unable to select a suitable filename for saving the session!\n');
 		return;
 	}
 
@@ -280,12 +284,15 @@ process.on('SIGINT', function() {
 		'url': url
 	}), function(err) {
 		if (err) {
-			console.log('ERROR while saving session for future crawling!');
+			process.stderr.write('ERROR while saving session for future crawling!\n');
 			console.log(err);
+			driver.quit();
 			return;
 		}
-		console.log('The session file was successfully saved to "'
-			+ filename + '"!');
-		process.exit();
+		process.stdout.write('The session file was successfully saved to "'
+			+ filename + '"!\n');
+		return;
 	});
+	process.stdout.write('The session file was successfully saved to "'
+		+ filename + '"!\n');
 });
