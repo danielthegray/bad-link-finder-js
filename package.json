@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/thedanielgray/bad-link-finder-full#readme",
   "dependencies": {
+    "chromedriver": "^2.38.3",
     "posix-getopt": "^1.2.0",
     "selenium-webdriver": "^3.5.0"
   }
