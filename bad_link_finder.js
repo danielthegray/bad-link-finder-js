@@ -189,72 +189,77 @@ async function crawl_url(url) {
 			continue;
 		}
 
-		await driver.get(current_url);
+		try {
+			await driver.get(current_url);
 
-		// Wait for the document to be ready
-		var ready_state = await driver.executeScript(
-			'return document.readyState;');
-		while (ready_state !== 'complete') {
-			driver.sleep(500);
-			ready_state = await driver.executeScript(
+			// Wait for the document to be ready
+			var ready_state = await driver.executeScript(
 				'return document.readyState;');
-		}
-
-		var jquery_on_page = await driver.executeScript(
-			'return typeof jQuery !== "undefined";');
-		if (jquery_on_page) {
-			// also wait for jQuery loading to finish (ajax requests, etc.)
-			var jquery_active = await driver.executeScript(
-				'return jQuery.active;');
-			while (jquery_active !== 0) {
+			while (ready_state !== 'complete') {
 				driver.sleep(500);
-				jquery_active = await driver.executeScript(
+				ready_state = await driver.executeScript(
+					'return document.readyState;');
+			}
+
+			var jquery_on_page = await driver.executeScript(
+				'return typeof jQuery !== "undefined";');
+			if (jquery_on_page) {
+				// also wait for jQuery loading to finish (ajax requests, etc.)
+				var jquery_active = await driver.executeScript(
 					'return jQuery.active;');
+				while (jquery_active !== 0) {
+					driver.sleep(500);
+					jquery_active = await driver.executeScript(
+						'return jQuery.active;');
+				}
 			}
-		}
 
-		var actual_url = await driver.getCurrentUrl();
-		if (actual_url !== current_url) {
-			try {
-				var actual_url_status = await check_url_status(actual_url);
-			} catch (error) {
-				var actual_url_object = Object.assign({}, url_object);
-				actual_url_object.url = actual_url;
-				process_error(url_stack, checked_links, actual_url_object);
-				continue;
+			var actual_url = await driver.getCurrentUrl();
+			if (actual_url !== current_url) {
+				try {
+					var actual_url_status = await check_url_status(actual_url);
+				} catch (error) {
+					var actual_url_object = Object.assign({}, url_object);
+					actual_url_object.url = actual_url;
+					process_error(url_stack, checked_links, actual_url_object);
+					continue;
+				}
+				print_url_status(actual_url, actual_url_status,
+					current_parent_url, verbose);
+				checked_links[actual_url] = true;
 			}
-			print_url_status(actual_url, actual_url_status,
-				current_parent_url, verbose);
-			checked_links[actual_url] = true;
-		}
 
-		var link_objects = await driver.findElements(By.tagName('a'));
-		for (var link_object of link_objects) {
-			var link_href = await link_object.getAttribute('href');
-			if (link_href == null
-					|| link_href.match(/^mailto:/)
-					|| link_href.match(/^news:/)
-					|| checked_links[link_href]) {
-				continue;
+			var link_objects = await driver.findElements(By.tagName('a'));
+			for (var link_object of link_objects) {
+				var link_href = await link_object.getAttribute('href');
+				if (link_href == null
+						|| link_href.match(/^mailto:/)
+						|| link_href.match(/^news:/)
+						|| checked_links[link_href]) {
+					continue;
+				}
+				url_stack.push({
+					url: link_href,
+					depth: current_depth+1,
+					parent_url: current_url,
+					retry_attempt: 0
+				});
 			}
-			url_stack.push({
-				url: link_href,
-				depth: current_depth+1,
-				parent_url: current_url,
-				retry_attempt: 0
-			});
+		} catch(e) {
+			console.log(e);
+			throw e;
 		}
 	}
 }
-try {
-	crawl_url(url).then(function() {
-		process.stderr.write('FINISHED CRAWLING!!\n');
-	}).catch((ex) => function() {
-		process.stderr.write('ERROR WHILE CRAWLING!!\n');
-	});
-} finally {
+
+crawl_url(url).then(() => {
+	process.stderr.write('FINISHED CRAWLING!!\n');
 	driver.quit();
-}
+}).catch((ex) => function() {
+	process.stderr.write('ERROR WHILE CRAWLING!!\n');
+	driver.quit();
+});
+
 process.on('SIGINT', function() {
 	process.stderr.write('\nCaught Control+C. Saving crawl session...\n');
 	// Yes, I know that declarations are hoisted anyway...
