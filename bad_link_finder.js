@@ -141,6 +141,22 @@ function process_error(error, url_stack, checked_links, url_object) {
 			+' [BROKEN! - cannot resolve "'+error.hostname+'"]');
 		return;
 	}
+	if (error.code === 'EHOSTUNREACH') {
+		console.log('Host unreachable: '+error.address+':'+error.port);
+		console.log('Retrying in 5 seconds...');
+		await sleep(5000);
+		url_stack.push(url_object);
+		return;
+	}
+	if (error.code === 'ECONNREFUSED') {
+		console.log(url_object.url+' (found on '+url_object.parent_url
+			+' [BROKEN! - Connection refused]');
+		return;
+	}
+	if (error.code === 'EPROTO') {
+		console.log(url_object.url+' (found on '+url_object.parent_url
+			+' [BROKEN! - Protocol error: '+error.Error+']');
+	}
 	if (url_object.retry_attempt > max_retries) {
 		console.log(url_object.url+' (found on '+url_object.parent_url
 			+' [BROKEN! - Timed out]');
@@ -159,6 +175,12 @@ function process_error(error, url_stack, checked_links, url_object) {
 		parent_url: url_object.parent_url,
 		retry_attempt: url_object.retry_attempt + 1
 	});
+}
+
+function sleep(ms){
+    return new Promise(resolve => {
+        setTimeout(resolve,ms);
+    });
 }
 
 async function crawl_url(url) {
