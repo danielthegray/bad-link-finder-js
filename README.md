@@ -1,4 +1,4 @@
-# bad-link-finder-full
+# bad-link-finder-js
 
 This a project with the same intent as my `bad-link-finder` project
 (found at https://github.com/thedanielgray/bad-link-finder).
@@ -10,6 +10,8 @@ or something along those lines, but I preferred to just use a headless
 browser and save time.
 
 This project is the result of that idea.
+
+** I found that it would randomly crash and not throw an error showing what happened or why, so I am abandoning this piece of JavaScript code. I'll leave it here in case it's useful for anyone, but I will re-write it in something else that will hopefully be more stable. **
 
 I have tested it on Node.js version 8.11.1.
 
